@@ -6,12 +6,12 @@ data "aws_availability_zones" "available" {}
 
 locals {
   region = "eu-west-1"
-  name   = "ex-${basename(path.cwd)}"
+  name   = "latam-engage"
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
 
-  container_name = "ecsdemo-frontend"
+  container_name = "latam-engage"
   container_port = 3000
 
   tags = {
@@ -20,6 +20,40 @@ locals {
     Repository = "https://github.com/terraform-aws-modules/terraform-aws-ecs"
   }
 }
+
+################################################################################
+# ECR
+################################################################################
+
+module "ecr" {
+  source  = "../../modules/ecr"
+  repository_name = local.name
+
+  # repository_read_write_access_arns = [data.aws_caller_identity.current.arn]
+  create_lifecycle_policy           = true
+  repository_lifecycle_policy = jsonencode({
+    rules = [
+      {
+        rulePriority = 1,
+        description  = "Keep last 30 images",
+        selection = {
+          tagStatus     = "tagged",
+          tagPrefixList = ["v"],
+          countType     = "imageCountMoreThan",
+          countNumber   = 30
+        },
+        action = {
+          type = "expire"
+        }
+      }
+    ]
+  })
+
+  repository_force_delete = true
+
+  tags = local.tags
+}
+
 
 ################################################################################
 # Cluster
@@ -107,7 +141,7 @@ module "ecs_service" {
         options = {
           Name                    = "firehose"
           region                  = local.region
-          delivery_stream         = "my-stream"
+          delivery_stream         = local.name
           log-driver-buffer-limit = "2097152"
         }
       }
@@ -145,7 +179,7 @@ module "ecs_service" {
 
   load_balancer = {
     service = {
-      target_group_arn = module.alb.target_groups["ex_ecs"].arn
+      target_group_arn = module.alb.target_groups["latam-engage"].arn
       container_name   = local.container_name
       container_port   = local.container_port
     }
@@ -177,58 +211,6 @@ module "ecs_service" {
   tags = local.tags
 }
 
-################################################################################
-# Standalone Task Definition (w/o Service)
-################################################################################
-
-module "ecs_task_definition" {
-  source = "../../modules/service"
-
-  # Service
-  name        = "${local.name}-standalone"
-  cluster_arn = module.ecs_cluster.arn
-
-  # Task Definition
-  volume = {
-    ex-vol = {}
-  }
-
-  runtime_platform = {
-    cpu_architecture        = "ARM64"
-    operating_system_family = "LINUX"
-  }
-
-  # Container definition(s)
-  container_definitions = {
-    al2023 = {
-      image = "public.ecr.aws/amazonlinux/amazonlinux:2023-minimal"
-
-      mount_points = [
-        {
-          sourceVolume  = "ex-vol",
-          containerPath = "/var/www/ex-vol"
-        }
-      ]
-
-      command    = ["echo hello world"]
-      entrypoint = ["/usr/bin/sh", "-c"]
-    }
-  }
-
-  subnet_ids = module.vpc.private_subnets
-
-  security_group_rules = {
-    egress_all = {
-      type        = "egress"
-      from_port   = 0
-      to_port     = 0
-      protocol    = "-1"
-      cidr_blocks = ["0.0.0.0/0"]
-    }
-  }
-
-  tags = local.tags
-}
 
 ################################################################################
 # Supporting Resources
@@ -280,13 +262,13 @@ module "alb" {
       protocol = "HTTP"
 
       forward = {
-        target_group_key = "ex_ecs"
+        target_group_key = "latam-engage"
       }
     }
   }
 
   target_groups = {
-    ex_ecs = {
+    latam-engage = {
       backend_protocol                  = "HTTP"
       backend_port                      = local.container_port
       target_type                       = "ip"

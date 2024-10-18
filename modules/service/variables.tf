@@ -16,6 +16,17 @@ variable "tags" {
   default     = {}
 }
 
+
+################################################################################
+# ECR
+################################################################################
+
+variable "prefix" {
+  description = "(Required) The repository name prefix to match against. Use `ROOT` to match any prefix that doesn't explicitly match another template"
+  type        = string
+  default     = "Latam"
+}
+
 ################################################################################
 # Service
 ################################################################################
