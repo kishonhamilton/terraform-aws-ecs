@@ -26,7 +26,7 @@ locals {
 ################################################################################
 
 module "ecr" {
-  source  = "../../modules/ecr"
+  source  = "../modules/ecr"
   repository_name = local.name
 
   # repository_read_write_access_arns = [data.aws_caller_identity.current.arn]
@@ -60,7 +60,7 @@ module "ecr" {
 ################################################################################
 
 module "ecs_cluster" {
-  source = "../../modules/cluster"
+  source = "../modules/cluster"
 
   cluster_name = local.name
 
@@ -87,7 +87,7 @@ module "ecs_cluster" {
 ################################################################################
 
 module "ecs_service" {
-  source = "../../modules/service"
+  source = "../modules/service"
 
   name        = local.name
   cluster_arn = module.ecs_cluster.arn
