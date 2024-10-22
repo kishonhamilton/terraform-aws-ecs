@@ -17,7 +17,7 @@ variable "tags" {
 variable "cluster_name" {
   description = "Name of the cluster (up to 255 letters, numbers, hyphens, and underscores)"
   type        = string
-  default     = ""
+  default     = "latam-engage"
 }
 
 variable "cluster_configuration" {

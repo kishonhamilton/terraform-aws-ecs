@@ -6,20 +6,39 @@ data "aws_availability_zones" "available" {}
 
 locals {
   region = "eu-west-1"
-  name   = "latam-engage"
+  name   = var.name
 
-  vpc_cidr = "10.0.0.0/16"
+  vpc_cidr = var.vpc_cidr
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
 
-  container_name = "latam-engage"
+  container_name = var.container_name
   container_port = 3000
-
-  tags = {
-    Name       = local.name
-    Example    = local.name
-    Repository = "https://github.com/terraform-aws-modules/terraform-aws-ecs"
-  }
+  tags           = var.tags
 }
+
+variable "cluster_name" {
+  
+}
+
+resource "aws_ecs_cluster" "this" {
+  name = var.cluster_name
+
+}
+
+################################################################################
+# Route 53 DNS
+################################################################################
+
+# module "route53" {
+#   source  = "./modules/route53"
+#   environment = "dev"
+#   domain_name = "mywebsite.org"
+#   san_names = ["ui.dev.example.com"]
+#   tags = local.tags
+#   alb_dns_name = module.alb.dns_name
+#   alb_zone_id = module.alb.zone_id
+# }
+
 
 ################################################################################
 # ECR
@@ -127,7 +146,6 @@ module "ecs_service" {
         }
       ]
 
-      # Example image used requires access to write to root filesystem
       readonly_root_filesystem = false
 
       dependencies = [{
@@ -230,7 +248,7 @@ module "alb" {
   source  = "terraform-aws-modules/alb/aws"
   version = "~> 9.0"
 
-  name = local.name
+  name = "main"
 
   load_balancer_type = "application"
 
